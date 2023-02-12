@@ -109,7 +109,6 @@ device_information()
 	echo ro.product."$VENDOR".brand="$SYS_VENDOR" >> /tmp/device.prop
 	echo ro.board.platform=(cat /proc/cpuinfo|grep 'vendor_id'|uniq|cut -d ':' -f 2) >> /tmp/device.prop
 	echo ro.vendor.cpu.platform=(cat /proc/cpuinfo|grep 'vendor_id'|uniq|cut -d ':' -f 2) >> /tmp/device.prop
-	echo ro.hardware=(cat /proc/cpuinfo|grep 'vendor_id' |uniq|cut -d ':' -f 2) >> /tmp/device.prop
 	mount --bind /tmp/device.prop system/vendor/etc/device.prop
 }
 
