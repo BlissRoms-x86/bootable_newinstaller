@@ -82,27 +82,33 @@ device_information()
 	PRODUCT_FAM=$(cat $DMIPATH/product_family)
 	PRODUCT_VER=$(cat $DMIPATH/product_version)
 	UEVENT=$(cat $DMIPATH/uevent)
-	VENDOR=$(cat $DMIPATH/sys_vendor)
 	SERIALNO=$(cat $DMIPATH/product_serial)
-
+	SYS_VENDOR=$(cat $DMIPATH/sys_vendor)
+	BOARD_VENDOR=$(cat $DMIPATH/board_vendor)
+	UI=bliss
+	
 	touch /tmp/device.prop
 
 	case "$VENDOR" in
 		*LENOVO*|*Lenovo*)
-		echo ro.product.bliss.device="$PRODUCT_FAM" >> /tmp/device.prop
-		echo ro.product.bliss.name="$PRODUCT_FAM" >> /tmp/device.prop
+		echo ro.product."$UI".device="$PRODUCT_FAM" >> /tmp/device.prop
+		echo ro.product."$UI".name="$PRODUCT_FAM" >> /tmp/device.prop
 		;;
 		*)
-		echo ro.product.bliss.device="$PRODUCT" >> /tmp/device.prop
-		echo ro.product.bliss.name="$PRODUCT" >> /tmp/device.prop
+		echo ro.product."$UI".device="$PRODUCT" >> /tmp/device.prop
+		echo ro.product."$UI".name="$PRODUCT" >> /tmp/device.prop
 		;;
 	esac
 
-	echo ro.product.bliss.brand="$VENDOR" >> /tmp/device.prop
-	echo ro.product.bliss.manufacturer="$(cat $DMIPATH/board_vendor)" >> /tmp/device.prop
-	echo ro.product.bliss.model="$BOARD" >> /tmp/device.prop
-	echo ro.product.board="$BOARD" >> /tmp/device.prop
-	echo ro.bliss.serialnumber="$SERIALNO" >> /tmp/device.prop
+	echo ro."$UI".serialnumber="$SERIALNO" >> /tmp/device.prop
+	echo ro.product."$UI".marketname="$PRODUCT" >> /tmp/device.prop
+	echo ro.product."$UI".model="$BOARD" >> /tmp/device.prop
+	echo ro.product."$UI".manufacturer="$BOARD_VENDOR" >> /tmp/device.prop
+	echo ro.product."$UI".device="$BOARD" >> /tmp/device.prop
+	echo ro.product."$UI".board="$BOARD" >> /tmp/device.prop
+	echo ro.product."$UI".brand="$SYS_VENDOR" >> /tmp/device.prop
+	echo ro.board.platform=(cat /proc/cpuinfo|grep 'vendor_id'|uniq|cut -d ':' -f 2) >> /tmp/device.prop
+	echo ro.vendor.cpu.platform=(cat /proc/cpuinfo|grep 'vendor_id'|uniq|cut -d ':' -f 2) >> /tmp/device.prop
 	mount --bind /tmp/device.prop system/vendor/etc/device.prop
 }
 
