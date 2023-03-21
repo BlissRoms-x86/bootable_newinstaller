@@ -37,10 +37,10 @@ bliss_feature()
 	if [ "$INTERNAL_MOUNT" -gt "0" ]; then
 cat << "EOF"
 # WARNING: INTERNAL_MOUNT option is enabled, all the internal partitions 
-# will now being recognized as USBs if the supported filesystem is available 
+# will now be recognized as USBs if the supported filesystem is available 
 # and will create empty directories like Android, DCIM, Documents, etc.
 
-## DO NOT PRESS "TAP TO FIX", IT WILL FORMAT THE DRIVE
+## DO NOT PRESS "TAP TO FIX", IT WILL FORMAT THE DRIVE!
 EOF
 
 	mount --bind system/vendor/etc/fstab.internal.x86 $(ls | grep fstab.)
@@ -49,16 +49,16 @@ EOF
 	# Enabling AOSP features for PC
 	if [ "$PC_MODE" -gt "0" ]; then
 cat << "EOF"
-# WARNING: PC_MODE will not working once Magisk or KernelSU modules are installed.
-# Visit BlissOS wiki for more info & solution
+# WARNING: PC_MODE will not work once Magisk or KernelSU modules are installed.
+# Visit BlissOS wiki for more info & solutions
 EOF
 		mount --bind system/etc/hidden_xml/pc.xml system/etc/permissions/pc.xml
 	fi
 
 	if [ "$HPE" -gt "0" ]; then
 cat << "EOF"
-# WARNING: HPE will not working once Magisk or KernelSU modules are installed.
-# Visit BlissOS wiki for more info & solution
+# WARNING: HPE will not work once Magisk or KernelSU modules are installed.
+# Visit BlissOS wiki for more info & solutions
 EOF
 		mount --bind system/etc/hidden_xml/hpe.xml system/etc/sysconfig/hpe.xml
 	fi
@@ -68,7 +68,7 @@ EOF
 cat << "EOF"
 # WARNING: c2.ffmpeg will not list on VINTF manifest list once Magisk
 # or KernelSU modules are installed.
-# Visit BlissOS wiki for more info & solution
+# Visit BlissOS wiki for more info & solutions
 EOF
 	mount --bind system/etc/hidden_xml/manifest_media_c2_V1_2_ffmpeg.xml system/vendor/etc/vintf/manifest/manifest_media_c2_V1_2_ffmpeg.xml
 	fi
