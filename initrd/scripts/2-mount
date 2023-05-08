@@ -7,13 +7,145 @@
 # with Android-x86 project.
 #
 
+getDeviceFile()
+{
+	local device=$1
+	local option=$2
+	local name=$3
+	local i
+
+	if [ -n "$device" ]; then
+		if [ -e "$device" ] && echo "$device" | grep -qe '^\/dev\/'; then
+			device="$(readlink -f "$device")"
+			local dev="/dev/block/$(basename "$device")"
+
+			if [ ! -e "$dev" ]; then
+				ln -s "$device" "$dev"
+			fi
+
+			echo "$dev"
+
+			return 0
+
+		elif [ -f "$SRCDST/$(echo "$device" | sed 's/^\///')" ] || [ -f "$device" ]; then
+			if [ -f "$SRCDST/$(echo "$device" | sed 's/^\///')" ]; then
+				device="$SRCDST/$(echo "$device" | sed 's/^\///')"
+			fi
+
+			# Check to see if this file is an actual file system contained file
+			# or something like a cpio.gz file (ramdisk)
+			if [ "$option" != "nodev" ] || ! zcat -t "$device" >/dev/null 2>&1; then
+				for i in $(seq 0 9); do
+					if ! losetup /dev/loop$i >/dev/null 2>&1; then
+						if losetup /dev/loop$i "$(readlink -f "$device")" >/dev/null 2>&1; then
+							local dev="/dev/block/loop$i"
+
+							ln -s "/dev/loop$i" "$dev"
+							echo "$dev"
+
+							return 0
+						fi
+					fi
+				done
+
+			else
+				echo "$(readlink -f "$device")"
+				return 0
+			fi
+
+			return 1
+		fi
+
+		# So far I have never seen any x86 android kernels that supports /dev/disk/
+		# but in case there is one or there will be in the future, let's
+		# start by checking that, before using blkid to do a search.
+
+		if echo "$device" | grep -qe '^LABEL='; then
+			local label="$(echo $device | cut -d '=' -f 2)"
+
+			if [ -e "/dev/disk/by-label/$label" ]; then
+				echo $(getDeviceFile "/dev/disk/by-label/$label" "$option" "$name")
+				return $?
+			fi
+
+			device="LABEL=\"$label\""
+
+		elif echo "$device" | grep -qe '^UUID='; then
+			local uuid="$(echo $device | cut -d '=' -f 2)"
+
+			if [ -e "/dev/disk/by-uuid/$uuid" ]; then
+				echo $(getDeviceFile "/dev/disk/by-uuid/$uuid" "$option" "$name")
+				return $?
+			fi
+
+			device="UUID=\"$uuid\""
+
+		elif echo "$device" | grep -qe '^PARTLABEL='; then
+			local label="$(echo $device | cut -d '=' -f 2)"
+
+			if [ -e "/dev/disk/by-partlabel/$label" ]; then
+				echo $(getDeviceFile "/dev/disk/by-partlabel/$label" "$option" "$name")
+				return $?
+			fi
+
+			device="PARTLABEL=\"$label\""
+
+		elif echo "$device" | grep -qe '^PARTUUID=='; then
+			local uuid="$(echo $device | cut -d '=' -f 2)"
+
+			if [ -e "/dev/disk/by-partuuid/$uuid" ]; then
+				echo $(getDeviceFile "/dev/disk/by-partuuid/$uuid" "$option" "$name")
+				return $?
+			fi
+
+			device="PARTUUID=\"$uuid\""
+
+		else
+			device=
+		fi
+
+		if [ -n "$device" ]; then
+			for i in $(blkid | grep "$device" | cut -d ':' -f 1); do
+				if [ -e "$i" ] && echo "$i" | grep -qe '^\/dev\/'; then
+					echo $(getDeviceFile "$i" "$option" "$name")
+					return $?
+				fi
+			done
+		fi
+
+		# We are looking for the root partition, the one we booted from
+		if [ "$name" = "root" ] && [ "$option" != "internal" ]; then
+			for i in $(blkid | cut -d ':' -f 1); do
+				if mount "$i" "$SRCDST" >/dev/null 2>&1; then
+					if [ -f "${SRCDST}${BOOT_IMAGE:-/kernel}" ]; then
+						echo $(getDeviceFile "$i" "internal" "$name")
+						local res=$?
+						umount "$SRCDST" >/dev/null 2>&1
+
+						return $res
+					fi
+
+					umount "$SRCDST" >/dev/null 2>&1
+				fi
+			done
+		fi
+	fi
+
+	if [ -n "$FSTAB" ] && device="$(grep -e "\(\s\)\+/$name\(\s\)\+" "$FSTAB")"; then
+		echo $(getDeviceFile "$(echo "$device" | sed 's/^\([^ \t]\+\).*/\1/')" "$option" "$name")
+		return $?
+	fi
+
+	return 1
+}
+
 mount_data()
 {
 	mountpoint -q data && return
 	if [ -n "$DATA" ]; then
-		blk=`basename $DATA`
-		if [ -b "/dev/$blk" ]; then
-			[ ! -e /dev/block/$blk ] && ln /dev/$blk /dev/block
+		device="$(getDeviceFile "$DATA" default data)"
+		blk=$(basename $device)
+		if [ -b "$device" ]; then
 			mount -o noatime /dev/block/$blk data
 		elif [ "$DATA" = "9p" ]; then
 			modprobe 9pnet_virtio
