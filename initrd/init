@@ -9,6 +9,8 @@
 #
 
 PATH=/sbin:/bin:/system/bin:/system/xbin; export PATH
+mkdir /tmp
+mount -t tmpfs tmpfs /tmp
 
 # ASCII art
 text_art()
