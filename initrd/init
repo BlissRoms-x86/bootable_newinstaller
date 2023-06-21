@@ -83,14 +83,14 @@ device_information()
 		echo ro.product.bliss.name="$PRODUCT_FAM" >> /tmp/device.prop
 		;;
 		*)
-		echo ro.product.bliss.device="$PRODUCT" >> /tmp/device.prop
-		echo ro.product.bliss.name="$PRODUCT" >> /tmp/device.prop
+		echo ro.product.bliss.device="$BOARD" >> /tmp/device.prop
+		echo ro.product.bliss.name="$BOARD" >> /tmp/device.prop
 		;;
 	esac
 
 	echo ro.product.bliss.brand="$VENDOR" >> /tmp/device.prop
 	echo ro.product.bliss.manufacturer="$(cat $DMIPATH/board_vendor)" >> /tmp/device.prop
-	echo ro.product.bliss.model="$BOARD" >> /tmp/device.prop
+	echo ro.product.bliss.model="$PRODUCT" >> /tmp/device.prop
 	echo ro.product.board="$BOARD" >> /tmp/device.prop
 	echo ro.bliss.serialnumber="$SERIALNO" >> /tmp/device.prop
 	mount --bind /tmp/device.prop system/vendor/etc/device.prop
