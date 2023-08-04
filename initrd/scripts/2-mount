@@ -196,8 +196,17 @@ mount_sdcard()
 mount_grub()
 {
 	mountpoint -q grub && return
-	if [ -d /mnt/grub ]; then
+	if [ -z $EFIDISK ]; then
+		if [ -d /mnt/boot/grub ]; then
+			remount_rw
+			mount --bind /mnt/boot/grub grub
+		fi
+	else
+		[ ! -e /dev/block/$EFIDISK ] && ln $1 /dev/block
+		dev=/dev/block/$EFIDISK
+
 		remount_rw
-		mount --bind /mnt/grub grub
+		mount /dev/block/$EFIDISK /efi
+		mount --bind /efi/$EFIDIR grub
 	fi
 }

@@ -39,7 +39,7 @@ TARGET_INITRD_OUT := $(PRODUCT_OUT)/initrd
 INITRD_RAMDISK := $(TARGET_INITRD_OUT).img
 $(INITRD_RAMDISK): $(initrd_bin) $(systemimg) $(TARGET_INITRD_SCRIPTS) | $(ACP) $(MKBOOTFS)
 	$(hide) rm -rf $(TARGET_INITRD_OUT)
-	mkdir -p $(addprefix $(TARGET_INITRD_OUT)/,android apex hd iso lib mnt proc scripts sfs sys tmp)
+	mkdir -p $(addprefix $(TARGET_INITRD_OUT)/,android apex efi hd iso lib mnt proc scripts sfs sys tmp)
 	$(if $(TARGET_INITRD_SCRIPTS),$(ACP) -p $(TARGET_INITRD_SCRIPTS) $(TARGET_INITRD_OUT)/scripts)
 	ln -s /bin/ld-linux.so.2 $(TARGET_INITRD_OUT)/lib
 	echo "VER=$(VER)" > $(TARGET_INITRD_OUT)/scripts/00-ver
@@ -85,6 +85,9 @@ $(INSTALL_RAMDISK): $(wildcard $(LOCAL_PATH)/install/*/* $(LOCAL_PATH)/install/*
 endif
 
 endif
+
+.PHONY: installimage
+installimage: $(INSTALL_RAMDISK)
 
 
 isolinux_files := $(addprefix external/syslinux/bios/com32/, \

@@ -241,53 +241,6 @@ format_fs()
 	fi
 }
 
-create_entry()
-{
-	title=$1
-	shift
-	echo -e "title $title\n\tkernel /$asrc/kernel_a$vga $@ SRC=/$asrc\n\tinitrd /$asrc/initrd_a.img\n" >> $menulst
-}
-
-create_menulst()
-{
-	menulst=/hd/grub/menu.lst
-	[ -n "$VESA" ] && vga=" vga=788 modeset=0"
-	echo -e "${GRUB_OPTIONS:-default=0\ntimeout=6\nsplashimage=/grub/android-x86.xpm.gz\n}root (hd0,$1)\n" > $menulst
-
-	cmdline="$cmdline androidboot.slot_suffix=_a"
-
-	create_entry "$OS_TITLE $VER" quiet $cmdline
-	create_entry "$OS_TITLE $VER (intel)" quiet $cmdline HWC=drm_minigbm_celadon GRALLOC=minigbm
-	create_entry "$OS_TITLE $VER (intel) w/ FFMPEG" quiet $cmdline HWC=drm_minigbm_celadon GRALLOC=minigbm FFMPEG_CODEC=1 FFMPEG_PREFER_C2=1
-	create_entry "$OS_TITLE $VER PC-Mode (intel) w/FFMPEG" quiet $cmdline PC_MODE=1 HWC=drm_minigbm_celadon GRALLOC=minigbm FFMPEG_CODEC=1 FFMPEG_PREFER_C2=1
-	create_entry "$OS_TITLE $VER PC-Mode" quiet $cmdline PC_MODE=1
-	create_entry "$OS_TITLE $VER QEMO/KVM" quiet $cmdline HWC=drm_minigbm GRALLOC=minigbm_arcvm FFMPEG_HWACCEL_DISABLE=1
-	create_entry "$OS_TITLE $VER VBOX/VMWARE" quiet $cmdline nomodeset HWACCEL=0
-	create_entry "$OS_TITLE $VER (Debug mode)" $cmdline DEBUG=2
-	create_entry "$OS_TITLE $VER (Debug mode) gralloc.gbm" $cmdline DEBUG=2 GRALLOC=gbm
-	create_entry "$OS_TITLE $VER (Debug mode) hwc.drm gralloc.gbm" $cmdline DEBUG=2 HWC=drm GRALLOC=gbm
-	create_entry "$OS_TITLE $VER (Debug mode) hwc.drm_minigbm gralloc.minigbm" DEBUG=2 HWC=drm_minigbm GRALLOC=minigbm
-	create_entry "$OS_TITLE $VER (Debug mode) hwc.drm_minigbm_celadon gralloc.minigbm" DEBUG=2 HWC=drm_minigbm_celadon GRALLOC=minigbm
-	create_entry "$OS_TITLE $VER (Debug mode) hwc.drm_minigbm gralloc.minigbm_gbm_mesa" DEBUG=2 HWC=drm_minigbm GRALLOC=minigbm_gbm_mesa
-	create_entry "$OS_TITLE $VER (Debug nomodeset)" nomodeset $cmdline DEBUG=2
-	create_entry "$OS_TITLE $VER (Debug video=LVDS-1:d)" video=LVDS-1:d $cmdline DEBUG=2
-}
-
-create_winitem()
-{
-	win=`fdisk -l /dev/$(echo $1 | cut -b-3) | grep ^/dev | cut -b6-12,55- | awk '{
-		if (match($2, "NTFS"))
-			print $1
-	}' | head -1`
-	if [ -n "$win" ]; then
-		dialog --title " Confirm " --yesno \
-			"\nThe installer found a Windows partition in /dev/$win.\n\nDo you want to create a boot item for Windows?" 9 59
-		[ $? -ne 0 ] && return 1
-		wp=$((`echo $win | cut -b4-`-1))
-		echo -e "title Windows\n\trootnoverify (hd$d,$wp)\n\tchainloader +1\n" >> $menulst
-	fi
-}
-
 check_data_img()
 {
 	losetup /dev/loop7 data.img
@@ -455,6 +408,7 @@ install_to()
 
 	fs=`cat /proc/mounts | grep /dev/$1 | awk '{ print $3 }'`
 	cmdline=`sed "s|\(initrd.*img\s*\)||; s|quiet\s*||; s|\(vga=\w\+\?\s*\)||; s|\(DPI=\w\+\?\s*\)||; s|\(AUTO_INSTALL=\w\+\?\s*\)||; s|\(INSTALL=\w\+\?\s*\)||; s|\(SRC=\S\+\?\s*\)||; s|\(DEBUG=\w\+\?\s*\)||; s|\(BOOT_IMAGE=\S\+\?\s*\)||; s|\(iso-scan/filename=\S\+\?\s*\)||; s|[[:space:]]*$||" /proc/cmdline`
+	cmdline="$cmdline androidboot.slot_suffix=_a"
 
 	[ -n "$INSTALL_PREFIX" ] && asrc=$INSTALL_PREFIX || asrc=android-$VER
 	set_answer_if_auto 1
@@ -473,14 +427,16 @@ install_to()
 				sleep 1
 			done
 		fi
-		cp -af /grub /hd
-		p=$(($p-1))
-		create_menulst $p
-		create_winitem $1 $d
-		rm -f /hd/boot/grub/stage1
-		echo "(hd$d) /dev/$disk" > /hd/grub/device.map
-		echo "setup (hd$d) (hd$d,$p)" | grub --device-map /hd/grub/device.map > /dev/tty5
+		grub-install --directory=/lib/grub/i386-pc --root-directory=/hd /dev/$disk
 		[ $? -ne 0 ] && return 255
+
+		cp /grub2/efi/boot/android.cfg /hd/boot/grub/
+		sed -i "s|VER|$VER|; s|CMDLINE|$cmdline|; s|OS_TITLE|$OS_TITLE|" /hd/boot/grub/android.cfg
+		sed -i "/fwsetup/d" /hd/boot/grub/android.cfg
+		grubcfg=/hd/boot/grub/grub.cfg
+		echo -e 'set timeout=5\nset debug_mode="(DEBUG mode)"' > $grubcfg
+		echo -e "set kdir=/$asrc" >> $grubcfg
+		echo -e '\nsource /boot/grub/android.cfg' >> $grubcfg
 	fi
 
 	[ -n "$efi" ] && adialog --title " Confirm " --no-label Skip --yesno \
@@ -519,6 +475,8 @@ install_to()
 		fi
 		mkdir -p `dirname $grubcfg` efi$efidir
 		cp -af grub2/efi/boot/* efi$efidir
+
+		cmdline="$cmdline androidboot.efidir=$efidir androidboot.efidisk=$boot"
 		sed -i "s|VER|$VER|; s|CMDLINE|$cmdline|; s|OS_TITLE|$OS_TITLE|" efi$efidir/android.cfg
 		[ -s efi/boot/grub/grubenv ] || ( printf %-1024s "# GRUB Environment Block%" | sed 's/k%/k\n/; s/   /###/g' > efi/boot/grub/grubenv )
 
@@ -526,7 +484,11 @@ install_to()
 		# Our grub-efi doesn't support ntfs directly.
 		# Copy boot files to ESP so grub-efi could read them
 		if [ "$fs" = "fuseblk" ]; then
-			cp -f src/kernel src/initrd.img efi$efidir
+			#FIXME: No OTA suuport for kernel and initrd of fuseblk
+			cp -f src/kernel efi$efidir/kernel_a
+			cp -f src/kernel efi$efidir/kernel_b
+			cp -f src/initrd.img efi$efidir/initrd_a.img
+			cp -f src/initrd.img efi$efidir/initrd_b.img
 			echo -e "set kdir=$efidir\nset src=SRC=/$asrc" >> $grubcfg
 		else
 			echo -e "set kdir=/$asrc" >> $grubcfg
@@ -582,8 +544,8 @@ install_to()
 		mv kernel kernel_a
 		mv initrd.img initrd_a.img
 		mv system.img system_a.img
-		gen_img 100 kernel_b
-		gen_img 100 initrd_b.img
+		gen_img 40 kernel_b
+		gen_img 40 initrd_b.img
 		gen_img 4096 system_b.img
 		gen_img 10 misc.img
 		resize_img kernel_a kernel_b
@@ -651,6 +613,7 @@ do_install()
 	[ -n "$efi" ] && mount -t efivarfs none /sys/firmware/efi/efivars
 	
 	chmod 755 /sbin/grub
+	chmod 755 /sbin/grub-install
 	chmod 755 /sbin/mkntfs
 	chmod 755 /sbin/efibootmgr
 

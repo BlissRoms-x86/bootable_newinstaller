@@ -290,6 +290,12 @@ for c in `cat /proc/cmdline`; do
 		androidboot.slot_suffix=*)
 			eval SLOT=`echo $c | cut -f 2 -d "="`
 			;;
+		androidboot.efidisk=*)
+			eval EFIDISK=`echo $c | cut -f 2 -d "="`
+			;;
+		androidboot.efidir=*)
+			eval EFIDIR=`echo $c | cut -f 2 -d "="`
+			;;
 		*)
 			;;
 	esac
