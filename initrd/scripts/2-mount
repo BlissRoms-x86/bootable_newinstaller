@@ -192,3 +192,12 @@ mount_sdcard()
 		fi
 	fi
 }
+
+mount_grub()
+{
+	mountpoint -q grub && return
+	if [ -d /mnt/grub ]; then
+		remount_rw
+		mount --bind /mnt/grub grub
+	fi
+}

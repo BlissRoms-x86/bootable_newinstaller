@@ -245,7 +245,7 @@ create_entry()
 {
 	title=$1
 	shift
-	echo -e "title $title\n\tkernel /$asrc/kernel$vga $@ SRC=/$asrc\n\tinitrd /$asrc/initrd.img\n" >> $menulst
+	echo -e "title $title\n\tkernel /$asrc/kernel_a$vga $@ SRC=/$asrc\n\tinitrd /$asrc/initrd_a.img\n" >> $menulst
 }
 
 create_menulst()
@@ -253,6 +253,8 @@ create_menulst()
 	menulst=/hd/grub/menu.lst
 	[ -n "$VESA" ] && vga=" vga=788 modeset=0"
 	echo -e "${GRUB_OPTIONS:-default=0\ntimeout=6\nsplashimage=/grub/android-x86.xpm.gz\n}root (hd0,$1)\n" > $menulst
+
+	cmdline="$cmdline androidboot.slot_suffix=_a"
 
 	create_entry "$OS_TITLE $VER" quiet $cmdline
 	create_entry "$OS_TITLE $VER (intel)" quiet $cmdline HWC=drm_minigbm_celadon GRALLOC=minigbm
@@ -304,6 +306,45 @@ gen_img()
 			| progress_bar "Creating `basename $2`" "Expect to write $1 MB..."
 	else
 		dd if=/dev/zero bs=1 count=0 seek=$1M of=$2
+	fi
+}
+
+resize_img()
+{
+	existing_file="$1"
+	reference_file="$2"
+
+	# Check if the file exists
+	if [ ! -f "$existing_file" ]; then
+		return 1
+	fi
+	if [ ! -f "$reference_file" ]; then
+		return 1
+	fi
+
+	# Get the current size of the file
+	final_size=$(wc -c < "$reference_file")
+	current_size=$(wc -c < "$existing_file")
+
+	# Calculate the remaining size to reach the final size
+	remaining_size=$((final_size - current_size))
+
+	if [ $remaining_size -le 0 ]; then
+		return 0
+	fi
+
+	# Calculate the number of 1MB blocks to append
+	blocks_to_append=$((remaining_size / 1048576))
+
+	# Append /dev/zero using bs=1M
+	dd if=/dev/zero bs=1M count=$blocks_to_append >> "$existing_file"
+
+	# Calculate the remaining size after appending 1MB blocks
+	remaining_size=$((remaining_size - (blocks_to_append * 1048576)))
+
+	# Append the remaining bytes using bs=1
+	if [ $remaining_size -gt 0 ]; then
+		dd if=/dev/zero bs=1 count=$remaining_size >> "$existing_file"
 	fi
 }
 
@@ -537,6 +578,17 @@ install_to()
 		for f in *; do
 			[ -d $f ] || chmod 644 $f
 		done
+
+		mv kernel kernel_a
+		mv initrd.img initrd_a.img
+		mv system.img system_a.img
+		gen_img 100 kernel_b
+		gen_img 100 initrd_b.img
+		gen_img 4096 system_b.img
+		gen_img 10 misc.img
+		resize_img kernel_a kernel_b
+		resize_img initrd_a.img initrd_b.img
+		resize_img system_a.img system_b.img
 
 		case "$fs" in
 			vfat|fuseblk)

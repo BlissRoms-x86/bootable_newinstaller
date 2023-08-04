@@ -205,9 +205,9 @@ check_root()
 			mount --move android /sfs
 			mount -o loop,noatime /sfs/system.img android
 		fi
-	elif [ -e /mnt/$SRC/system.img ]; then
+	elif [ -e /mnt/$SRC/system$SLOT.img ]; then
 		remount_rw
-		mount -o loop,noatime /mnt/$SRC/system.img android
+		mount -o loop,noatime /mnt/$SRC/system$SLOT.img android
 	elif [ -s /mnt/$SRC/system/system/build.prop ]; then
 		remount_rw
 		mount --bind /mnt/$SRC/system android
@@ -241,6 +241,39 @@ debug_shell()
 	fi
 }
 
+setup_loop()
+{
+	for i in $(seq 0 9); do
+		if ! losetup /dev/loop$i >/dev/null 2>&1; then
+			if losetup /dev/loop$i $1 >/dev/null 2>&1; then
+				local dev="/dev/block/loop$i"
+
+				ln -s "/dev/loop$i" "$dev"
+				echo "$dev"
+
+				return 0
+			fi
+		fi
+	done
+}
+
+setup_ab_loops()
+{
+	if [ ! -z "$SLOT" ]; then
+		if [ "$SLOT" = "_a" ]; then
+			ln -s $(setup_loop /mnt/$SRC/system_b.img) /dev/block/by-name/system_b
+		else
+			ln -s $(setup_loop /mnt/$SRC/system_a.img) /dev/block/by-name/system_a
+		fi
+
+		ln -s $(setup_loop /mnt/$SRC/initrd_a.img) /dev/block/by-name/initrd_a
+		ln -s $(setup_loop /mnt/$SRC/initrd_b.img) /dev/block/by-name/initrd_b
+		ln -s $(setup_loop /mnt/$SRC/kernel_a) /dev/block/by-name/kernel_a
+		ln -s $(setup_loop /mnt/$SRC/kernel_b) /dev/block/by-name/kernel_b
+		ln -s $(setup_loop /mnt/$SRC/misc.img) /dev/block/by-name/misc
+	fi
+}
+
 echo "Detecting Android-x86..."
 echo ""
 echo "If it took too long to detect, reboot and check your installation folder"
@@ -253,6 +286,9 @@ for c in `cat /proc/cmdline`; do
 		iso-scan/filename=*)
 			SRC=iso
 			eval `echo $c | cut -b1-3,18-`
+			;;
+		androidboot.slot_suffix=*)
+			eval SLOT=`echo $c | cut -f 2 -d "="`
 			;;
 		*)
 			;;
@@ -323,6 +359,8 @@ fi
 load_modules
 mount_data
 mount_sdcard
+mount_grub
+setup_ab_loops
 setup_tslib
 setup_dpi
 post_detect
