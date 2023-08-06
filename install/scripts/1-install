@@ -241,6 +241,21 @@ format_fs()
 	fi
 }
 
+create_winitem()
+{
+	win=`fdisk -l /dev/$(echo $1 | cut -b-3) | grep ^/dev | cut -b6-12,55- | awk '{
+		if (match($2, "NTFS"))
+			print $1
+	}' | head -1`
+	if [ -n "$win" ]; then
+		dialog --title " Confirm " --yesno \
+			"\nThe installer found a Windows partition in /dev/$win.\n\nDo you want to create a boot item for Windows?" 9 59
+		[ $? -ne 0 ] && return 1
+		wp=$((`echo $win | cut -b4-`-1))
+		sed -i "s|#WINDOWS_ENTRY|add_winboot_entry $d $wp|" /hd/boot/grub/android.cfg
+	fi
+}
+
 check_data_img()
 {
 	losetup /dev/loop7 data.img
@@ -437,6 +452,7 @@ install_to()
 		echo -e 'set timeout=5\nset debug_mode="(DEBUG mode)"' > $grubcfg
 		echo -e "set kdir=/$asrc" >> $grubcfg
 		echo -e '\nsource /boot/grub/android.cfg' >> $grubcfg
+		create_winitem
 	fi
 
 	[ -n "$efi" ] && adialog --title " Confirm " --no-label Skip --yesno \
