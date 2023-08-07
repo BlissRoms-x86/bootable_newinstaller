@@ -446,7 +446,7 @@ install_to()
 		[ $? -ne 0 ] && return 255
 
 		cp /grub2/efi/boot/android.cfg /hd/boot/grub/
-		sed -i "s|VER|$VER|; s|CMDLINE|$cmdline|; s|OS_TITLE|$OS_TITLE|" /hd/boot/grub/android.cfg
+		sed -i "s|VER|$VER|; s|CMDLINE|$cmdline|; s|OS_TITLE|$OS_TITLE|; s|/kernel|/kernel_a|; s|/initrd.img|/initrd_a.img|" /hd/boot/grub/android.cfg
 		sed -i "/fwsetup/d" /hd/boot/grub/android.cfg
 		grubcfg=/hd/boot/grub/grub.cfg
 		echo -e 'set timeout=5\nset debug_mode="(DEBUG mode)"' > $grubcfg
@@ -493,7 +493,7 @@ install_to()
 		cp -af grub2/efi/boot/* efi$efidir
 
 		cmdline="$cmdline androidboot.efidir=$efidir androidboot.efidisk=$boot"
-		sed -i "s|VER|$VER|; s|CMDLINE|$cmdline|; s|OS_TITLE|$OS_TITLE|" efi$efidir/android.cfg
+		sed -i "s|VER|$VER|; s|CMDLINE|$cmdline|; s|OS_TITLE|$OS_TITLE|; s|/kernel|/kernel_a|; s|/initrd.img|/initrd_a.img|" efi$efidir/android.cfg
 		[ -s efi/boot/grub/grubenv ] || ( printf %-1024s "# GRUB Environment Block%" | sed 's/k%/k\n/; s/   /###/g' > efi/boot/grub/grubenv )
 
 		echo -e 'set timeout=5\nset debug_mode="(DEBUG mode)"' > $grubcfg
