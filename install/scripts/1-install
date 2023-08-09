@@ -501,6 +501,7 @@ install_to()
 		# Copy boot files to ESP so grub-efi could read them
 		if [ "$fs" = "fuseblk" ]; then
 			#FIXME: No OTA suuport for kernel and initrd of fuseblk
+			dialog --infobox "\n OTA updates is not supported for fuseblk. \n Please use extfs if you need OTA updates..." 5 27
 			cp -f src/kernel efi$efidir/kernel_a
 			cp -f src/kernel efi$efidir/kernel_b
 			cp -f src/initrd.img efi$efidir/initrd_a.img
@@ -556,6 +557,8 @@ install_to()
 		for f in *; do
 			[ -d $f ] || chmod 644 $f
 		done
+		
+		dialog --infobox "\n Preparing install for OTA updates..." 5 27
 
 		mv kernel kernel_a
 		mv initrd.img initrd_a.img
