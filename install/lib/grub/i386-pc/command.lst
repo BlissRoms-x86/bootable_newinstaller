@@ -36,6 +36,7 @@
 *pcidump: pcidump
 *plan9: plan9
 *probe: probe
+*rdmsr: rdmsr
 *read_byte: memrw
 *read_dword: memrw
 *read_word: memrw
@@ -49,6 +50,7 @@
 *sha256sum: hashsum
 *sha512sum: hashsum
 *sleep: sleep
+*smbios: smbios
 *submenu: normal
 *syslinux_configfile: syslinuxcfg
 *syslinux_source: syslinuxcfg
@@ -56,8 +58,8 @@
 *test_blockarg: test_blockarg
 *testspeed: testspeed
 *tr: tr
-*trust: verify
-*verify_detached: verify
+*trust: pgp
+*verify_detached: pgp
 *xnu_splash: xnu
 *zfskey: zfscrypt
 .: configfile
@@ -84,7 +86,7 @@ continue: normal
 coreboot_boottime: cbtime
 cutmem: mmap
 date: date
-distrust: verify
+distrust: pgp
 dump: minicmd
 efiemu_loadcore: efiemu
 efiemu_prepare: efiemu
@@ -103,6 +105,7 @@ gdbstub_break: gdb
 gdbstub_stop: gdb
 gptsync: gptsync
 help: minicmd
+hexdump_random: random
 hwmatch: hwmatch
 initrd16: linux16
 initrd: linux
@@ -122,7 +125,7 @@ legacy_password: legacycfg
 legacy_source: legacycfg
 linux16: linux16
 linux: linux
-list_trusted: verify
+list_trusted: pgp
 loadfont: font
 lsapm: lsapm
 lscoreboot: cbls
@@ -139,10 +142,12 @@ nativedisk: nativedisk
 net_add_addr: net
 net_add_dns: net
 net_add_route: net
+net_bootp6: net
 net_bootp: net
 net_del_addr: net
 net_del_dns: net
 net_del_route: net
+net_dhcp: net
 net_get_dhcp_option: net
 net_ipv6_autoconf: net
 net_ls_addr: net
@@ -186,6 +191,7 @@ videotest: videotest
 write_byte: memrw
 write_dword: memrw
 write_word: memrw
+wrmsr: wrmsr
 xnu_devprop_load: xnu
 xnu_kernel64: xnu
 xnu_kernel: xnu
