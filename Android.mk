@@ -28,12 +28,35 @@ include $(BUILD_PREBUILT)
 
 VER ?= $$(date "+%Y-%m-%d")
 
+# use squashfs or erofs for iso, unless explictly disabled
+ifneq ($(USE_SQUASHFS),0)
+MKSQUASHFS := $(HOST_OUT_EXECUTABLES)/mksquashfs$(HOST_EXECUTABLE_SUFFIX)
+
+define build-squashfs-target
+	$(hide) $(MKSQUASHFS) $(1) $(2) -noappend -comp zstd
+endef
+endif
+
+ifneq ($(USE_EROFS),0)
+MKEROFS := $(HOST_OUT_EXECUTABLES)/make_erofs$(HOST_EXECUTABLE_SUFFIX)
+
+define build-erofs-target
+	$(hide) $(MKEROFS) -zlz4hc -C65536 $(2) $(systemimage_intermediates)
+endef
+endif
+
 initrd_dir := $(LOCAL_PATH)/initrd
 initrd_bin := \
 	$(initrd_dir)/init \
 	$(wildcard $(initrd_dir)/*/*)
 
+ifneq ($(USE_SQUASHFS),0)
+systemimg  := $(PRODUCT_OUT)/system.$(if $(MKSQUASHFS),sfs,img)
+else ifneq ($(USE_EROFS),0)
+systemimg  := $(PRODUCT_OUT)/system.$(if $(MKEROFS),efs,img)
+else
 systemimg  := $(PRODUCT_OUT)/system.img
+endif
 
 TARGET_INITRD_OUT := $(PRODUCT_OUT)/initrd
 INITRD_RAMDISK := $(TARGET_INITRD_OUT).img
