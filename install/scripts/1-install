@@ -535,7 +535,17 @@ install_to()
 	try_upgrade hd/$asrc
 
 	! test -f hd/$asrc/system.img -o -d hd/$asrc/system
-	sysimg="mnt/$SRC/system.*"
+	sysimg="mnt/$SRC/system.img"
+	mountpoint -q /sfs && umount /sfs
+	if [ -e mnt/$SRC/system.sfs ]; then
+		mount -o loop,noatime mnt/$SRC/system.sfs /sfs
+	elif [ -e mnt/$SRC/system.efs ]; then
+		mount -o loop,noatime mnt/$SRC/system.efs /sfs
+	fi
+	if [ -e /sfs/system.img ]; then
+		sysimg="sfs/system.img"
+	fi
+
 	files="mnt/$SRC/kernel mnt/$SRC/initrd.img $sysimg"
 	size=0
 	for s in `du -sk $files | awk '{print $1}'`; do
