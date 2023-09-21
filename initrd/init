@@ -96,16 +96,10 @@ device_information()
 	mount --bind /tmp/device.prop system/vendor/etc/device.prop
 }
 
-# auto installation
-if [ -n "$AUTO_INSTALL" ]; then
-	echo -n "This will replace all operating-systems on this device with a read-only version of this OS. Are you sure you want to continue (y/n)? "
-	read answer
-	if [ "$answer" != "${answer#[Yy]}" ] ;then
-		echo "Booting in Live Mode instead"
-	else
-		echo "Starting Installer"
-		INSTALL=1
-	fi
+# OEM installation
+if [ -n "$OEM_INSTALL" ]; then
+	echo "Starting Installer"
+	INSTALL=1
 fi
 
 # configure debugging output

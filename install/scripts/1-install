@@ -29,7 +29,7 @@ auto_answer()
 
 set_answer_if_auto()
 {
-	[ -n "$AUTO_INSTALL" ] && answer="$1"
+	[ -n "$OEM_INSTALL" ] && answer="$1"
 }
 
 adialog()
@@ -68,16 +68,24 @@ list_disks()
 
 auto_partition()
 {
-	[ "$AUTO_INSTALL" = "force" ] || dialog --title " Auto Installer " --defaultno --yesno \
-		"\nYou have chosen the AUTO installation.\n\nThe installer will erase the whole /dev/$1 and install $OS_TITLE to it.\n\nThis is the last confirmation. Are you sure to do so?" 12 61
+	[ "$OEM_INSTALL" = "force" ] || [ "$OEM_INSTALL" = "mbr" ] || [ "$OEM_INSTALL" = "efi" ] || dialog --title " OEM Installer " --defaultno --yesno \
+		"\nYou have chosen the OEM installation.\n\nThe installer will erase the whole /dev/$1 and install $OS_TITLE to it.\n\nThis is the last confirmation. Are you sure to do so?" 12 61
 	[ $? -ne 0 ] && rebooting
 
-	if [ -z "$efi" ]; then
-		echo -e "o\nn\np\n1\n\n\nw\n" | fdisk /dev/$1
-		p=1
+	if [ -z "$efi" ] || [ "$OEM_INSTALL" = "mbr" ]; then
+		if sfdisk --delete /dev/$1; sfdisk -a -X linux /dev/$1; p=1; then # TRY
+			echo 'SFDISK: Partition created with sfdisk'
+		else # CATCH
+			echo 'SGDISK: Using sgdisk to create and convert to mbr instead'
+			sgdisk --zap-all /dev/$1; sgdisk --new=1::+500M --typecode=1:EF00 --largest-new=2 --typecode=2:8300 /dev/$1; plist=$(sgdisk --print /dev/$disk | awk '/^  / { printf "%s:", $1 }' | sed 's/:$//'); sgdisk --gpttombr=$plist /dev/$disk > /dev/tty6; p=2; until try_mount rw /dev/$1 /hd; do sleep 1; done
+		fi
+	elif [ "$OEM_INSTALL" = "efi" ]; then
+		sgdisk --zap-all /dev/$1
+		sgdisk --new=1::+500M --typecode=1:EF00 --largest-new=2 --typecode=2:8300 /dev/$1
+		p=2
 	else
 		sgdisk --zap-all /dev/$1
-		sgdisk --new=1::+260M --typecode=1:EF00 --largest-new=2 --typecode=2:8300 /dev/$1
+		sgdisk --new=1::+500M --typecode=1:EF00 --largest-new=2 --typecode=2:8300 /dev/$1
 		p=2
 	fi > /dev/tty6
 
@@ -85,7 +93,9 @@ auto_partition()
 		answer=`find_partition $1 $p`
 		[ -n "$answer" ] && break
 	done
-	[ -n "$efi" ] && mkdosfs -n EFI /dev/`find_partition $1 1`
+	if [ -n "$efi" ] || [ "$OEM_INSTALL" = "efi" ]; then
+	    mkdosfs -n EFI /dev/`find_partition $1 1`
+	fi
 }
 
 partition_drive()
@@ -116,10 +126,10 @@ partition_drive()
 		return 255
 	fi
 
-	if [ $count -eq 1 -o "$AUTO_INSTALL" = "force" ]; then
+	if [ $count -eq 1 -o "$OEM_INSTALL" = "force" -o "$OEM_INSTALL" = "mbr" -o "$OEM_INSTALL" = "efi" ]; then
 		drive=1
 	else
-		drive=`basename $AUTO_INSTALL`
+		drive=`basename $OEM_INSTALL`
 	fi
 	choice=`awk -v n=$drive '{ if (n == NR || n == $1) print $1 }' $menufile`
 	if [ -b /dev/$choice ]; then
@@ -128,13 +138,13 @@ partition_drive()
 		choose "Choose Drive" "Please select a drive to edit partitions:\n\n* - Installer source"
 	fi
 	if [ $retval -eq 0 ]; then
-		if [ -n "$AUTO_INSTALL" ]; then
+		if [ -n "$OEM_INSTALL" ]; then
 			auto_partition $choice
 			return 1
 		fi
 		if fdisk -l /dev/$choice | grep -q GPT; then
 			part_tool=cgdisk
-		elif fdisk -l /dev/$choice | grep -q doesn.t; then
+		elif fdisk -l /dev/$choice | grep -q "doesn't"; then
 			dialog --title " Confirm " --defaultno --yesno "\n Do you want to use GPT?" 7 29
 			[ $? -eq 0 ] && part_tool=cgdisk || part_tool=cfdisk
 		else
@@ -225,7 +235,7 @@ format_fs()
 			;;
 	esac
 	if [ -n "$cmd" ]; then
-		[ -n "$AUTO_INSTALL" ] || dialog --title " Confirm " --defaultno --yesno \
+		[ -n "$OEM_INSTALL" ] || dialog --title " Confirm " --defaultno --yesno \
 			"\n You chose to format $1 to $choice.\n All data in that partition will be LOST.\n\n Are you sure to format the partition $1?" 10 59
 		[ $? -ne 0 ] && return 1
 		$cmd Android-x86 /dev/$1 | awk '{
@@ -422,7 +432,7 @@ install_to()
 	done
 
 	fs=`cat /proc/mounts | grep /dev/$1 | awk '{ print $3 }'`
-	cmdline=`sed "s|\(initrd.*img\s*\)||; s|quiet\s*||; s|\(vga=\w\+\?\s*\)||; s|\(DPI=\w\+\?\s*\)||; s|\(AUTO_INSTALL=\w\+\?\s*\)||; s|\(INSTALL=\w\+\?\s*\)||; s|\(SRC=\S\+\?\s*\)||; s|\(DEBUG=\w\+\?\s*\)||; s|\(BOOT_IMAGE=\S\+\?\s*\)||; s|\(iso-scan/filename=\S\+\?\s*\)||; s|[[:space:]]*$||" /proc/cmdline`
+	cmdline=`sed "s|\(initrd.*img\s*\)||; s|quiet\s*||; s|\(vga=\w\+\?\s*\)||; s|\(DPI=\w\+\?\s*\)||; s|\(OEM_INSTALL=\w\+\?\s*\)||; s|\(INSTALL=\w\+\?\s*\)||; s|\(SRC=\S\+\?\s*\)||; s|\(DEBUG=\w\+\?\s*\)||; s|\(BOOT_IMAGE=\S\+\?\s*\)||; s|\(iso-scan/filename=\S\+\?\s*\)||; s|[[:space:]]*$||" /proc/cmdline`
 	cmdline="$cmdline androidboot.slot_suffix=_a"
 
 	[ -n "$INSTALL_PREFIX" ] && asrc=$INSTALL_PREFIX || asrc=android-$VER
@@ -458,7 +468,7 @@ install_to()
 	[ -n "$efi" ] && adialog --title " Confirm " --no-label Skip --yesno \
 		"\n Do you want to install EFI GRUB2?" 7 39
 	if [ $? -eq 0 ]; then
-		[ -z "$AUTO_INSTALL" -o -n "$AUTO_UPDATE" ] && for i in `list_disks`; do
+		[ -z "$OEM_INSTALL" -o -n "$AUTO_UPDATE" ] && for i in `list_disks`; do
 			disk=`basename $i`
 			esp=`sgdisk --print /dev/$disk 2> /dev/null | grep EF00 | awk '{print $1}'`
 			[ -n "$esp" ] && boot=`find_partition $disk $esp` && break
@@ -532,7 +542,11 @@ install_to()
 		fi
 	fi
 
-	try_upgrade hd/$asrc
+	if [ "$OEM_INSTALL" = "force" ] || [ "$OEM_INSTALL" = "mbr" ] || [ "$OEM_INSTALL" = "efi" ]; then
+		echo "OEM install forcing is enabled, skipping upgrade..."
+	else
+		try_upgrade hd/$asrc
+	fi
 
 	! test -f hd/$asrc/system.img -o -d hd/$asrc/system
 	sysimg="mnt/$SRC/system.img"
@@ -600,13 +614,13 @@ install_to()
 
 install_hd()
 {
-	case "$AUTO_INSTALL" in
+	case "$OEM_INSTALL" in
 		[Uu]*)
 			answer=${AUTO_UPDATE:-$(blkid | grep -v loop | grep -v iso9660 | sort | grep Android-x86 | cut -d: -f1 | head -1)}
 			answer=${answer:-$(blkid | grep -v loop | sort | grep ext4 | cut -d: -f1 | head -1)}
 			[ -b "$answer" -o -b /dev/$answer ] && answer=`basename $answer` || answer=
 			AUTO_UPDATE=${answer:-$AUTO_UPDATE}
-			[ -z "$AUTO_UPDATE" ] && AUTO_INSTALL=
+			[ -z "$AUTO_UPDATE" ] && OEM_INSTALL=
 			;;
 		*)
 			[ -z "$answer" ] && set_answer_if_auto Create
@@ -645,6 +659,7 @@ do_install()
 	chmod 755 /sbin/grub-install
 	chmod 755 /sbin/mkntfs
 	chmod 755 /sbin/efibootmgr
+	chmod 755 /sbin/sfdisk
 
 	until install_hd; do
 		if [ $retval -eq 255 ]; then
