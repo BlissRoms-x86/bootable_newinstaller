@@ -8,7 +8,7 @@
 # with Android-x86 project.
 #
 
-PATH=/sbin:/bin:/system/bin:/system/xbin:/vendor/bin:/system/vendor/bin; export PATH
+PATH=/sbin:/bin:/system/bin:/system/xbin:/vendor/bin:/system_ext/bin:/system/vendor/bin:/system/system_ext/bin; export PATH
 
 # ASCII art
 text_art()
