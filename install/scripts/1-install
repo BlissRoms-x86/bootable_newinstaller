@@ -226,7 +226,7 @@ convert_fs()
 format_fs()
 {
 	local cmd
-	echo -e '"Do not re-format" ""\next4 ""\nntfs ""\nfat32 ""\nexfat ""' > $menufile
+	echo -e '"Do not re-format" ""\next4 ""\nntfs ""\nfat32 ""\nexfat ""\nf2fs ""' > $menufile
 	set_answer_if_auto $FORCE_FORMAT
 	choose "Choose filesystem" "Please select a filesystem to format $1:"
 	case "$choice" in
@@ -235,6 +235,9 @@ format_fs()
 			;;
 		exfat)
 			cmd="mkfs.exfat -L"
+			;;
+		f2fs)
+			cmd="make_f2fs -l"
 			;;
 		ntfs)
 			cmd="mkntfs -fL"
