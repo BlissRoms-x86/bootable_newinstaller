@@ -218,12 +218,15 @@ convert_fs()
 format_fs()
 {
 	local cmd
-	echo -e '"Do not re-format" ""\next4 ""\nntfs ""\nfat32 ""' > $menufile
+	echo -e '"Do not re-format" ""\next4 ""\nntfs ""\nfat32 ""\nexfat ""' > $menufile
 	set_answer_if_auto $FORCE_FORMAT
 	choose "Choose filesystem" "Please select a filesystem to format $1:"
 	case "$choice" in
 		ext4)
 			cmd="mkfs.ext3 -L"
+			;;
+		exfat)
+			cmd="mkfs.exfat -L"
 			;;
 		ntfs)
 			cmd="mkntfs -fL"
@@ -596,7 +599,7 @@ install_to()
 		resize_img system_a.img system_b.img
 
 		case "$fs" in
-			vfat|fuseblk)
+			vfat|fuseblk|exfat)
 				[ -e data.img ] && check_data_img || create_data_img
 				;;
 			*)
