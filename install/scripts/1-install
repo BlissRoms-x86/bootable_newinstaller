@@ -148,7 +148,15 @@ partition_drive()
 			dialog --title " Confirm " --defaultno --yesno "\n Do you want to use GPT?" 7 29
 			[ $? -eq 0 ] && part_tool=cgdisk || part_tool=cfdisk
 		else
-			part_tool=cfdisk
+		dialog --title " Confirm " --defaultno --yesno \
+"\n The setup will now redirect to the cfdisk program on drive /dev/$choice. \
+However, would you prefer to use the cgdisk program instead? \
+\n cgdisk is designed exclusively for GPT disks, while cfdisk can handle both MBR and GPT. \
+This is merely a preference; if you wish, we can redirect to cgdisk instead. \
+Select 'Yes' to switch to cgdisk, or 'No' to remain with cfdisk. \
+\n \
+\n Tips : If you install on a VM or on a fresh new drive, on cfdisk 'dos' is for MBR, 'gpt' is for GPT" 16 60
+		[ $? -eq 0 ] && part_tool=cgdisk || part_tool=cfdisk
 		fi
 		$part_tool /dev/$choice
 		if [ $? -eq 0 ]; then
