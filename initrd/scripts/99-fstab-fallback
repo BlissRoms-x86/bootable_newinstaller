@@ -1,0 +1,23 @@
+# shellcheck shell=sh
+# By Shadichy <shadichy.dev@gmail.com>
+# Last updated 2024/10/01
+#
+# License: GNU Public License
+# We explicitely grant the right to use the scripts
+# with Android-x86 project.
+#
+
+check_fstab() {
+  fstab_file=/mnt/$SRC/fstab.android
+  fstab_tmp=/tmp/fstab.tmp
+
+  if [ -f "$fstab_file" ]; then
+    cp "$fstab_file" $fstab_tmp
+  else
+    echo "Warning: No fstab found. Attempting to create one..."
+    /bin/build-fstab "/mnt/$SRC" >$fstab_tmp ||
+      debug_shell fatal-err
+
+    cp $fstab_tmp "$fstab_file" 2>/dev/null || :
+  fi
+}

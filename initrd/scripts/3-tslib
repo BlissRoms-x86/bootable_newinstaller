@@ -1,26 +1,32 @@
-setup_tslib()
-{
+# shellcheck shell=sh
+setup_tslib() {
 	# setup for pointercal
-	if [ -n "$BOARD_USES_TSLIB" ]; then
-		TSLIBPATH=data/system/tslib
-		if [ ! -e $TSLIBPATH/pointercal ]; then
-			mkdir -p $TSLIBPATH
-			if [ -z "$CALIBRATE" -a -n "`ls system/etc/pointercal*`" ]; then
-				board=`cat /sys/class/dmi/id/product_name`
-				[ -e system/etc/pointercal.$board ] && pointercal=system/etc/pointercal.$board
-				[ -e system/etc/pointercal ] && pointercal=system/etc/pointercal
-			fi
-			if [ -n "$pointercal" ]; then
-				cp $pointercal $TSLIBPATH/pointercal
-			elif [ -e system/etc/ts.env ]; then
-				ln -s android/data /
-				mkdir /dev/graphics /dev/input
-				ln -s /dev/fb* /dev/graphics
-				ln -s /dev/event* /dev/input
-				ts_calibrate > /tmp/cal.log
-			fi
-			chmod 664 $TSLIBPATH/pointercal
-			chown 1000.1000 data data/system $TSLIBPATH
-		fi
+	if [ "$BOARD_USES_TSLIB" ]; then
+		return
 	fi
+
+	TSLIBPATH=data/system/tslib
+	if [ -e $TSLIBPATH/pointercal ]; then
+		return
+	fi
+
+	mkdir -p $TSLIBPATH
+	if [ -z "$CALIBRATE" ] && [ -n "$(ls system/etc/pointercal*)" ]; then
+		board=$(cat /sys/class/dmi/id/product_name)
+		[ -e system/etc/pointercal.$board ] && pointercal=system/etc/pointercal.$board
+		[ -e system/etc/pointercal ] && pointercal=system/etc/pointercal
+	fi
+
+	if [ -n "$pointercal" ]; then
+		cp $pointercal $TSLIBPATH/pointercal
+	elif [ -e system/etc/ts.env ]; then
+		ln -s android/data /
+		mkdir /dev/graphics /dev/input
+		ln -s /dev/fb* /dev/graphics
+		ln -s /dev/event* /dev/input
+		ts_calibrate >/tmp/cal.log
+	fi
+
+	chmod 664 $TSLIBPATH/pointercal
+	chown 1000.1000 data data/system $TSLIBPATH
 }

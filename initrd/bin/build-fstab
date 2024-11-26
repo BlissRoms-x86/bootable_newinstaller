@@ -1,0 +1,80 @@
+#!/bin/busybox sh
+# By Shadichy <shadichy.dev@gmail.com>
+# Last updated 2024/10/01
+#
+# License: GNU Public License
+# We explicitely grant the right to use the scripts
+# with Android-x86 project.
+#
+# shellcheck disable=SC3036
+
+src=$1
+
+# check if specified device has pattern like UUID= or LABEL=
+find_device() {
+  case "$1" in
+  UUID=* | LABEL=*) busybox findfs "$1" ;;
+  *) echo "$1" ;;
+  esac
+}
+
+# shellcheck disable=SC2013
+for c in $(cat /proc/cmdline); do
+  case "$c" in
+  androidboot.slot_suffix=*) SLOT=${c##*=} ;;
+  *) ;;
+  esac
+done
+
+_s=system\$SLOT
+
+if ls "$src"/system"$SLOT".?fs >/dev/null 2>&1; then
+  _s=$_s.$(basename "$(find "$src"/system"$SLOT".?fs | head -1)" | cut -f 2 -d '.')
+elif [ -e "$src"/system"$SLOT".img ]; then
+  _s=$_s.img
+elif [ -s "$src"/system"$SLOT"/default.prop ]; then
+  :
+elif [ -s "$src"/default.prop ]; then
+  _s=
+else
+  exit 1
+fi
+
+echo -e "#>$_s  /"
+
+_d=${DATA:=${2:-data.img}}
+[ "$_d" = "nodata" ] && exit 0
+
+_d_fs=auto
+_d_flags=defaults
+_d_aflags=defaults
+if [ -b "$(find_device "$_d")" ]; then
+  _d_flags=noatime
+elif [ "$_d" = "9p" ]; then
+  _d_fs=9p
+  _d_flags='trans=virtio,version=9p2000.L,posixacl'
+elif [ "$_d" = "virtiofs" ]; then
+  _d_fs=virtiofs
+  _d_flags=nosuid,nodev,noatime
+elif [ -f "$src/$_d" ]; then
+  _d="#>$_d  /data  \n#?/data"
+  _d_flags=loop,noatime
+else
+  [ -d "$src/$_d" ] || _d=data
+  if [ -d "$src/$_d" ]; then
+    _d="#>$_d"
+    _d_fs=
+    _d_flags=
+    _d_aflags=
+  else
+    _d=tmpfs
+    _d_fs=tmpfs
+  fi
+fi
+
+echo -e "$_d  /data  $_d_fs  $_d_flags  $_d_aflags"
+
+_b=${3:-"#>boot"}
+[ "$_b" = "noboot" ] && exit 0
+
+echo -e "$_b  /boot"
